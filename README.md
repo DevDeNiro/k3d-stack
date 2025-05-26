@@ -24,7 +24,7 @@ Production-like Kubernetes environment using [k3d](https://k3d.io/) + [K3s](http
 > easily (start, stop, open browser, get token).
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ```bash
 # 1. Install everything
@@ -41,7 +41,7 @@ open http://keycloak.local:30080
 
 ---
 
-## ⚙️ Prerequisites
+## Prerequisites
 
 - **Docker Desktop** (running)
 - **k3d** ≥ v5.0 – [Install](https://k3d.io/#installation)
@@ -49,7 +49,7 @@ open http://keycloak.local:30080
 
 ---
 
-## 🔧 Essential Commands
+## Essential Commands
 
 ```bash
 # Check everything is running
@@ -68,24 +68,9 @@ kubectl get ingress -A
 # Cleanup
 k3d cluster delete dev-cluster
 ```
-
 ---
 
-## 📁 Key Files
-
-```
-k3d-stack/
-├── install.sh              # Install Main installer
-├── uninstall.sh            # Remove Main installer
-├── dashboard.sh            # Manage the dashboard
-├── deploy-ingress.sh       # Setup clean URLs
-├── helm/                   # Service configurations
-└── kube/                   # Cluster config
-```
-
----
-
-## 🔄 Development Workflow
+## Development Workflow
 
 1. **Start:** `./install.sh` → Select services to install
 2. **Access:** `./deploy-ingress.sh` → Get clean URLs
@@ -95,7 +80,7 @@ k3d-stack/
 
 ---
 
-## 🚨 Quick Fixes
+## Quick Fixes
 
 **Ingress not working?**
 
@@ -110,7 +95,3 @@ grep "local" /etc/hosts
 kubectl logs -n <namespace> <pod-name>
 kubectl describe pod <pod-name> -n <namespace>
 ```
-
----
-
-**Ready to code? Run `./install.sh` and you're set ! **
