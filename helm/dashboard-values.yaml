@@ -1,0 +1,5 @@
+kong:
+    service:
+        type: NodePort
+        nodePorts:
+            https: 30000

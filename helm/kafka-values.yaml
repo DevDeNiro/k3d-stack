@@ -1,0 +1,63 @@
+global:
+    storageClass: ""
+
+image:
+    registry: docker.io
+    repository: bitnami/kafka
+    tag: latest
+    pullPolicy: IfNotPresent
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+    create: true
+
+replicaCount: 1  # Use 3+ for production
+
+listeners:
+    # Plain listener for internal clients
+    client:
+        name: CLIENT
+        port: 9092
+        protocol: PLAINTEXT
+        sslClientAuth: ""
+    # External listener for clients outside the cluster
+    external:
+        name: EXTERNAL
+        port: 9093
+        protocol: PLAINTEXT
+        sslClientAuth: ""
+
+persistence:
+    enabled: true
+    size: 8Gi
+    mountPath: /bitnami/kafka
+
+zookeeper:
+    enabled: true
+    replicaCount: 1  # Use 3+ for production
+    persistence:
+        enabled: true
+        size: 8Gi
+
+resources:
+    limits:
+        cpu: 500m
+        memory: 1Gi
+    requests:
+        cpu: 250m
+        memory: 512Mi
+
+kraft:
+    enabled: true  # Enable KRaft mode (no ZooKeeper dependency)
+
+logRetentionHours: 24
+logRetentionBytes: 1073741824  # 1GB
+
+# Additional configuration properties
+extraConfig: |
+    auto.create.topics.enable=true
+    delete.topic.enable=true
+    num.partitions=3
+    default.replication.factor=1  # Set to 3 for production

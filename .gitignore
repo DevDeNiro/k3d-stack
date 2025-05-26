@@ -1,0 +1,11 @@
+# Generated credentials
+*_password.txt
+dashboard_token.txt
+
+# Runtime files
+dashboard_port_forward.log
+dashboard_portforward.pid
+
+# IDE
+*.iml
+.idea/
