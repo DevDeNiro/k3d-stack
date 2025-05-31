@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Script to deploy Ingress for currently deployed services
+### Script to deploy Ingress for currently deployed services ###
 
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
@@ -147,6 +147,8 @@ deploy_ingress_if_namespace_exists "security" "keycloak" "keycloak.local" 80
 deploy_ingress_if_namespace_exists "monitoring" "grafana" "grafana.local" 80
 deploy_ingress_if_namespace_exists "monitoring" "prometheus-server" "prometheus.local" 80
 deploy_ingress_if_namespace_exists "storage" "minio-console" "minio.local" 9001
+deploy_ingress_if_namespace_exists "storage" "postgresql" "postgres.local" 5432
+deploy_ingress_if_namespace_exists "storage" "redis-master" "redis.local" 6379
 deploy_ingress_if_namespace_exists "logging" "kibana-kibana" "kibana.local" 5601
 
 # Deploy Vault Ingress
@@ -188,16 +190,20 @@ if [ "$SERVICE_TYPE" = "LoadBalancer" ]; then
     echo -e "${GREEN}Grafana:${NC} http://grafana.local"
     echo -e "${GREEN}Prometheus:${NC} http://prometheus.local"
     echo -e "${GREEN}MinIO Console:${NC} http://minio.local"
+    echo -e "${GREEN}PostgreSQL:${NC} http://postgres.local"
+    echo -e "${GREEN}Redis:${NC} http://redis.local"
     echo -e "${GREEN}Vault:${NC} http://vault.local"
-    echo -e "${GREEN}Kibana:${NC} http://kibana.local (if deployed)"
-    echo -e "${GREEN}Kafka UI:${NC} http://kafka-ui.local (if deployed)"
-    echo -e "${GREEN}Dashboard:${NC} http://dashboard.local (if deployed)"
+    echo -e "${GREEN}Kibana:${NC} http://kibana.local "
+    echo -e "${GREEN}Kafka UI:${NC} http://kafka-ui.local "
+    echo -e "${GREEN}Dashboard:${NC} http://dashboard.local "
     echo -e "\n${YELLOW}LoadBalancer mode detected - using standard ports (80/443)${NC}"
 else
     echo -e "${GREEN}Keycloak:${NC} http://keycloak.local:30080"
     echo -e "${GREEN}Grafana:${NC} http://grafana.local:30080"
     echo -e "${GREEN}Prometheus:${NC} http://prometheus.local:30080"
     echo -e "${GREEN}MinIO Console:${NC} http://minio.local:30080"
+    echo -e "${GREEN}PostgreSQL:${NC} http://postgres.local:30080"
+    echo -e "${GREEN}Redis:${NC} http://redis.local:30080"
     echo -e "${GREEN}Vault:${NC} http://vault.local:30080"
     echo -e "${GREEN}Kibana:${NC} http://kibana.local:30080 (if deployed)"
     echo -e "${GREEN}Kafka UI:${NC} http://kafka-ui.local:30080 (if deployed)"

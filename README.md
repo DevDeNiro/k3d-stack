@@ -39,6 +39,11 @@ open http://keycloak.local:30080
 
 **That's it!** All services accessible via clean URLs, no port-forwarding needed.
 
+Use it like so : 
+``` 
+k3d cluster stop dev-cluster
+k3d cluster start dev-cluster
+```
 ---
 
 ## Prerequisites

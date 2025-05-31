@@ -89,7 +89,104 @@ install_prometheus_operator_crds() {
     echo -e "${GREEN}Prometheus Operator CRDs installed successfully!${NC}"
 }
 
-# Function to run port-forward in background with enhanced robustness
+# Function to check is a service is already installed
+check_service_installed() {
+    local service_name="$1"
+    local namespace="$2"
+    local resource_type="${3:-deployment}"
+
+    if kubectl get "$resource_type" -n "$namespace" 2>/dev/null | grep -q "$service_name"; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Fonction to detect the service installed
+detect_installed_services() {
+    echo -e "\n${YELLOW}Detecting installed services...${NC}"
+
+    # Dashboard
+    if check_service_installed "kubernetes-dashboard" "kubernetes-dashboard"; then
+        echo -e "${GREEN}✓ Kubernetes Dashboard is already installed${NC}"
+        dashboard_installed=true
+    else
+        dashboard_installed=false
+    fi
+
+    # PostgreSQL
+    if check_service_installed "postgresql" "storage" "statefulset"; then
+        echo -e "${GREEN}✓ PostgreSQL is already installed${NC}"
+        postgres_installed=true
+    else
+        postgres_installed=false
+    fi
+
+    # Redis
+    if check_service_installed "redis" "storage" "statefulset"; then
+        echo -e "${GREEN}✓ Redis is already installed${NC}"
+        redis_installed=true
+    else
+        redis_installed=false
+    fi
+
+    # Kafka
+    if check_service_installed "kafka" "messaging" "statefulset"; then
+        echo -e "${GREEN}✓ Kafka is already installed${NC}"
+        kafka_installed=true
+    else
+        kafka_installed=false
+    fi
+
+    # Keycloak
+    if check_service_installed "keycloak" "security" "statefulset"; then
+        echo -e "${GREEN}✓ Keycloak is already installed${NC}"
+        keycloak_installed=true
+    else
+        keycloak_installed=false
+    fi
+
+    # Vault
+    if check_service_installed "vault" "vault" "statefulset"; then
+        echo -e "${GREEN}✓ Vault is already installed${NC}"
+        vault_installed=true
+    else
+        vault_installed=false
+    fi
+
+    # Prometheus
+    if check_service_installed "prometheus-server" "monitoring"; then
+        echo -e "${GREEN}✓ Prometheus is already installed${NC}"
+        prometheus_installed=true
+    else
+        prometheus_installed=false
+    fi
+
+    # Grafana
+    if check_service_installed "grafana" "monitoring"; then
+        echo -e "${GREEN}✓ Grafana is already installed${NC}"
+        grafana_installed=true
+    else
+        grafana_installed=false
+    fi
+
+    # Ingress
+    if check_service_installed "ingress-nginx-controller" "ingress-nginx"; then
+        echo -e "${GREEN}✓ Nginx Ingress is already installed${NC}"
+        ingress_installed=true
+    else
+        ingress_installed=false
+    fi
+
+    # MinIO
+    if check_service_installed "minio" "storage"; then
+        echo -e "${GREEN}✓ MinIO is already installed${NC}"
+        minio_installed=true
+    else
+        minio_installed=false
+    fi
+}
+
 start_port_forward() {
     echo -e "${YELLOW}Starting port-forward for Kubernetes Dashboard...${NC}"
 
@@ -304,6 +401,8 @@ if k3d cluster list | grep -q "dev-cluster"; then
             # Ensure we're connected to the existing cluster
             k3d kubeconfig merge dev-cluster --kubeconfig-switch-context || true
             kubectl config use-context k3d-dev-cluster || true
+
+            detect_installed_services
             ;;
         2)
             create_new_cluster=true
@@ -322,51 +421,121 @@ fi
 
 # Ask for service installation
 echo -e "\n${YELLOW}Select services to install:${NC}"
-install_vault=false
 install_dashboard=false
+install_postgres=false
+install_redis=false
+install_kafka=false
+install_keycloak=false
+install_vault=false
 install_prometheus=false
 install_grafana=false
 install_elasticsearch=false
-install_kafka=false
-install_keycloak=false
 install_ingress=false
 install_minio=false
 
-if confirm "Install Kubernetes Dashboard?" "Y"; then
-    install_dashboard=true
+# Dashboard
+if [ "${dashboard_installed:-false}" = true ]; then
+    echo -e "${GREEN}✓ Kubernetes Dashboard already installed - skipping${NC}"
+    install_dashboard=false
+else
+    if confirm "Install Kubernetes Dashboard?" "Y"; then
+        install_dashboard=true
+    fi
 fi
 
-if confirm "Install Kafka (Messaging)?" "Y"; then
-    install_kafka=true
+# PostgreSQL
+if [ "${postgres_installed:-false}" = true ]; then
+    echo -e "${GREEN}✓ PostgreSQL already installed - skipping${NC}"
+    install_postgres=false
+else
+    if confirm "Install PostgreSQL (Database)?" "Y"; then
+        install_postgres=true
+    fi
 fi
 
-if confirm "Install Keycloak (IAM)?" "Y"; then
-    install_keycloak=true
+# Redis
+if [ "${redis_installed:-false}" = true ]; then
+    echo -e "${GREEN}✓ Redis already installed - skipping${NC}"
+    install_redis=false
+else
+    if confirm "Install Redis (Cache/Session Store)?" "Y"; then
+        install_redis=true
+    fi
 fi
 
-if confirm "Install HashiCorp Vault (Security)?" "Y"; then
-    install_vault=true
+# Kafka
+if [ "${kafka_installed:-false}" = true ]; then
+    echo -e "${GREEN}✓ Kafka already installed - skipping${NC}"
+    install_kafka=false
+else
+    if confirm "Install Kafka (Messaging)?" "Y"; then
+        install_kafka=true
+    fi
 fi
 
-if confirm "Install Prometheus (Monitoring)?" "Y"; then
-    install_prometheus=true
+# Keycloak
+if [ "${keycloak_installed:-false}" = true ]; then
+    echo -e "${GREEN}✓ Keycloak already installed - skipping${NC}"
+    install_keycloak=false
+else
+    if confirm "Install Keycloak (IAM)?" "Y"; then
+        install_keycloak=true
+    fi
 fi
 
-if confirm "Install Grafana (Monitoring Dashboards)?" "Y"; then
-    install_grafana=true
+# Vault
+if [ "${vault_installed:-false}" = true ]; then
+    echo -e "${GREEN}✓ Vault already installed - skipping${NC}"
+    install_vault=false
+else
+    if confirm "Install HashiCorp Vault (Security)?" "Y"; then
+        install_vault=true
+    fi
 fi
 
-# TODO: Fix the install of them --> CrashLoopBackOff
+# Prometheus
+if [ "${prometheus_installed:-false}" = true ]; then
+    echo -e "${GREEN}✓ Prometheus already installed - skipping${NC}"
+    install_prometheus=false
+else
+    if confirm "Install Prometheus (Monitoring)?" "Y"; then
+        install_prometheus=true
+    fi
+fi
+
+# Grafana
+if [ "${grafana_installed:-false}" = true ]; then
+    echo -e "${GREEN}✓ Grafana already installed - skipping${NC}"
+    install_grafana=false
+else
+    if confirm "Install Grafana (Monitoring Dashboards)?" "Y"; then
+        install_grafana=true
+    fi
+fi
+
+# Elasticsearch
 #if confirm "Install Elasticsearch and Kibana (Logging)?" "Y"; then
 #    install_elasticsearch=true
 #fi
 
-if confirm "Install Nginx Ingress Controller ?" "Y"; then
-    install_ingress=true
+# Ingress
+if [ "${ingress_installed:-false}" = true ]; then
+    echo -e "${GREEN}✓ Nginx Ingress already installed - skipping${NC}"
+    install_ingress=false
+else
+    if confirm "Install Nginx Ingress Controller ?" "Y"; then
+        install_ingress=true
+    fi
 fi
 
-if confirm "Install MinIO (Object Storage)?" "Y"; then
-    install_minio=true
+# MinIO
+if [ "${minio_installed:-false}" = true ]; then
+    echo -e "${GREEN}✓ MinIO already installed - skipping${NC}"
+    install_minio=false
+else
+    if confirm "Install MinIO (Object Storage)?" "Y"; then
+        install_minio=true
+    fi
 fi
 
 # Handle cluster creation/deletion based on earlier choice
@@ -499,7 +668,89 @@ helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 helm repo add minio https://charts.min.io/
 helm repo update
 
-# Deploy selected Helm charts
+### Deploy selected Helm charts ###
+if [ "$install_postgres" = true ]; then
+    echo -e "\n${YELLOW}>>> Deploying PostgreSQL...${NC}"
+
+    # Generate random password for PostgreSQL if not already created
+    if [ ! -f postgres_password.txt ]; then
+        POSTGRES_PASSWORD=$(openssl rand -base64 12)
+        echo "$POSTGRES_PASSWORD" > postgres_password.txt
+        chmod 600 postgres_password.txt
+    else
+        POSTGRES_PASSWORD=$(cat postgres_password.txt)
+    fi
+
+    helm install postgresql bitnami/postgresql --namespace storage --create-namespace \
+        --set auth.postgresPassword="$POSTGRES_PASSWORD" \
+        --set auth.database=myapp \
+        --set auth.username=myapp \
+        --set auth.password="$POSTGRES_PASSWORD" \
+        -f helm/postgresql-values.yaml --wait --timeout 120s
+
+    echo -e "${GREEN}PostgreSQL deployed successfully!${NC}"
+    echo -e "${YELLOW}PostgreSQL credentials saved to postgres_password.txt${NC}"
+fi
+
+if [ "$install_redis" = true ]; then
+    echo -e "\n${YELLOW}>>> Deploying Redis...${NC}"
+
+    # Generate random password for Redis if not already created
+    if [ ! -f redis_password.txt ]; then
+        REDIS_PASSWORD=$(openssl rand -base64 12)
+        echo "$REDIS_PASSWORD" > redis_password.txt
+        chmod 600 redis_password.txt
+    else
+        REDIS_PASSWORD=$(cat redis_password.txt)
+    fi
+
+    helm install redis bitnami/redis --namespace storage --create-namespace \
+        --set auth.password="$REDIS_PASSWORD" \
+        -f helm/redis-values.yaml --wait --timeout 120s
+
+    echo -e "${GREEN}Redis deployed successfully!${NC}"
+    echo -e "${YELLOW}Redis credentials saved to redis_password.txt${NC}"
+fi
+
+if [ "$install_kafka" = true ]; then
+    echo -e "\n${YELLOW}>>> Deploying Kafka...${NC}"
+    helm install kafka bitnami/kafka --namespace messaging --create-namespace \
+        -f helm/kafka-values.yaml --wait --timeout 120s
+    echo -e "${GREEN}Kafka deployed successfully!${NC}"
+
+    # Install Kafka UI automatically with Kafka
+    echo -e "\n${YELLOW}>>> Deploying Kafka UI...${NC}"
+
+    # Wait a bit for Kafka to be fully ready
+    echo -e "${YELLOW}Waiting for Kafka to be ready before deploying UI...${NC}"
+    kubectl wait --for=condition=Ready pods -l app.kubernetes.io/name=kafka -n messaging --timeout=120s || true
+    sleep 10
+
+    # Deploy Kafka UI
+    kubectl apply -f kube/kafka-ui.yaml
+
+    # Wait for Kafka UI to be ready
+    echo -e "${YELLOW}Waiting for Kafka UI to be ready...${NC}"
+    kubectl wait --for=condition=available deployment/kafka-ui -n messaging --timeout=120s || true
+
+    echo -e "${GREEN}Kafka UI deployed successfully!${NC}"
+    echo -e "${YELLOW}Access Kafka UI at: http://kafka-ui.local (after setting up Ingress)${NC}"
+fi
+
+if [ "$install_keycloak" = true ]; then
+    echo -e "\n${YELLOW}>>> Deploying Keycloak...${NC}"
+    helm install keycloak bitnami/keycloak --namespace security --create-namespace \
+        -f helm/keycloak-values.yaml --wait --timeout 300s
+
+    # Get Keycloak admin password
+    KEYCLOAK_PASSWORD=$(kubectl get secret --namespace security keycloak -o jsonpath="{.data.admin-password}" | base64 --decode ; echo)
+    echo -e "${GREEN}Keycloak deployed successfully!${NC}"
+    echo -e "${YELLOW}Keycloak admin password: ${KEYCLOAK_PASSWORD}${NC}"
+    echo "$KEYCLOAK_PASSWORD" > keycloak_password.txt
+    chmod 600 keycloak_password.txt
+    echo -e "${GREEN}Keycloak password saved to keycloak_password.txt${NC}"
+fi
+
 if [ "$install_vault" = true ]; then
     echo -e "\n${YELLOW}>>> Deploying Vault...${NC}"
     helm install vault hashicorp/vault --namespace vault --create-namespace \
@@ -517,7 +768,6 @@ if [ "$install_prometheus" = true ]; then
         -f helm/alertmanager-values.yaml --wait --timeout 120s
     echo -e "${GREEN}Prometheus and AlertManager deployed successfully!${NC}"
 fi
-
 
 if [ "$install_grafana" = true ]; then
     echo -e "\n${YELLOW}>>> Deploying Grafana...${NC}"
@@ -670,45 +920,6 @@ if [ "$install_elasticsearch" = true ]; then
     fi
 fi
 
-if [ "$install_kafka" = true ]; then
-    echo -e "\n${YELLOW}>>> Deploying Kafka...${NC}"
-    helm install kafka bitnami/kafka --namespace messaging --create-namespace \
-        -f helm/kafka-values.yaml --wait --timeout 120s
-    echo -e "${GREEN}Kafka deployed successfully!${NC}"
-
-    # Install Kafka UI automatically with Kafka
-    echo -e "\n${YELLOW}>>> Deploying Kafka UI...${NC}"
-
-    # Wait a bit for Kafka to be fully ready
-    echo -e "${YELLOW}Waiting for Kafka to be ready before deploying UI...${NC}"
-    kubectl wait --for=condition=Ready pods -l app.kubernetes.io/name=kafka -n messaging --timeout=120s || true
-    sleep 10
-
-    # Deploy Kafka UI
-    kubectl apply -f kube/kafka-ui.yaml
-
-    # Wait for Kafka UI to be ready
-    echo -e "${YELLOW}Waiting for Kafka UI to be ready...${NC}"
-    kubectl wait --for=condition=available deployment/kafka-ui -n messaging --timeout=120s || true
-
-    echo -e "${GREEN}Kafka UI deployed successfully!${NC}"
-    echo -e "${YELLOW}Access Kafka UI at: http://kafka-ui.local (after setting up Ingress)${NC}"
-fi
-
-if [ "$install_keycloak" = true ]; then
-    echo -e "\n${YELLOW}>>> Deploying Keycloak...${NC}"
-    helm install keycloak bitnami/keycloak --namespace security --create-namespace \
-        -f helm/keycloak-values.yaml --wait --timeout 300s
-
-    # Get Keycloak admin password
-    KEYCLOAK_PASSWORD=$(kubectl get secret --namespace security keycloak -o jsonpath="{.data.admin-password}" | base64 --decode ; echo)
-    echo -e "${GREEN}Keycloak deployed successfully!${NC}"
-    echo -e "${YELLOW}Keycloak admin password: ${KEYCLOAK_PASSWORD}${NC}"
-    echo "$KEYCLOAK_PASSWORD" > keycloak_password.txt
-    chmod 600 keycloak_password.txt
-    echo -e "${GREEN}Keycloak password saved to keycloak_password.txt${NC}"
-fi
-
 if [ "$install_dashboard" = true ]; then
     echo -e "\n${YELLOW}>>> Deploying Kubernetes Dashboard...${NC}"
     helm install kubernetes-dashboard kubernetes-dashboard/kubernetes-dashboard \
@@ -802,7 +1013,7 @@ if [ "$install_dashboard" = true ]; then
     echo -e "${GREEN}===================================================================${NC}"
 fi
 
-# Show service access details
+### Show service access details ###
 if [ "$install_prometheus" = true ] || [ "$install_grafana" = true ]; then
     echo -e "\n${GREEN}=== Monitoring Service Access ===${NC}"
 
@@ -838,6 +1049,22 @@ if [ "$install_kafka" = true ]; then
     echo -e "${YELLOW}Example port-forward: kubectl port-forward svc/kafka 9092:9092 -n messaging${NC}"
 fi
 
+if [ "$install_postgres" = true ]; then
+    echo -e "\n${GREEN}=== Database Service Access ===${NC}"
+    echo -e "${YELLOW}Access PostgreSQL${NC}"
+    echo -e "${YELLOW}Run: kubectl port-forward svc/postgresql 5432:5432 -n database${NC}"
+    echo -e "${YELLOW}Connection: postgresql://myapp:$(cat postgres_password.txt)@localhost:5432/myapp${NC}"
+    echo -e "${YELLOW}Admin connection: postgresql://postgres:$(cat postgres_password.txt)@localhost:5432/postgres${NC}"
+fi
+
+if [ "$install_redis" = true ]; then
+    echo -e "\n${GREEN}=== Cache Service Access ===${NC}"
+    echo -e "${YELLOW}Access Redis${NC}"
+    echo -e "${YELLOW}Run: kubectl port-forward svc/redis-master 6379:6379 -n cache${NC}"
+    echo -e "${YELLOW}Connection: redis://localhost:6379 (password: $(cat redis_password.txt))${NC}"
+    echo -e "${YELLOW}Redis CLI: kubectl exec -it svc/redis-master -n cache -- redis-cli -a $(cat redis_password.txt)${NC}"
+fi
+
 if [ "$install_keycloak" = true ]; then
     echo -e "\n${GREEN}=== Security Service Access ===${NC}"
     echo -e "${YELLOW}Access Keycloak${NC}"
@@ -865,16 +1092,112 @@ fi
 
 # Summary of installation
 echo -e "\n${BLUE}Installation Summary:${NC}"
-echo -e "  - K3s cluster: ${GREEN}Installed${NC}"
-if [ "$install_vault" = true ]; then echo -e "  - Vault: ${GREEN}Installed${NC}"; else echo -e "  - Vault: ${YELLOW}Not installed${NC}"; fi
-if [ "$install_dashboard" = true ]; then echo -e "  - Kubernetes Dashboard: ${GREEN}Installed${NC}"; else echo -e "  - Kubernetes Dashboard: ${YELLOW}Not installed${NC}"; fi
-if [ "$install_prometheus" = true ]; then echo -e "  - Prometheus: ${GREEN}Installed${NC}"; else echo -e "  - Prometheus: ${YELLOW}Not installed${NC}"; fi
-if [ "$install_grafana" = true ]; then echo -e "  - Grafana: ${GREEN}Installed${NC}"; else echo -e "  - Grafana: ${YELLOW}Not installed${NC}"; fi
-if [ "$install_elasticsearch" = true ]; then echo -e "  - Elasticsearch/Kibana: ${GREEN}Installed${NC}"; else echo -e "  - Elasticsearch/Kibana: ${YELLOW}Not installed${NC}"; fi
-if [ "$install_kafka" = true ]; then echo -e "  - Kafka: ${GREEN}Installed${NC}"; else echo -e "  - Kafka: ${YELLOW}Not installed${NC}"; fi
-if [ "$install_keycloak" = true ]; then echo -e "  - Keycloak: ${GREEN}Installed${NC}"; else echo -e "  - Keycloak: ${YELLOW}Not installed${NC}"; fi
-if [ "$install_ingress" = true ]; then echo -e "  - Ingress (Nginx): ${GREEN}Installed${NC}"; else echo -e "  - Ingress: ${YELLOW}Not installed${NC}"; fi
-if [ "$install_minio" = true ]; then echo -e "  - MinIO: ${GREEN}Installed${NC}"; else echo -e "  - MinIO: ${YELLOW}Not installed${NC}"; fi
+
+# K3s cluster status
+if [ "$create_new_cluster" = true ]; then
+    echo -e "  - K3s cluster: ${GREEN}Created/Recreated${NC}"
+else
+    echo -e "  - K3s cluster: ${GREEN}Existing (kept)${NC}"
+fi
+
+# Dashboard
+if [ "${dashboard_installed:-false}" = true ]; then
+    echo -e "  - Kubernetes Dashboard: ${GREEN}Already installed${NC}"
+elif [ "$install_dashboard" = true ]; then
+    echo -e "  - Kubernetes Dashboard: ${GREEN}Newly installed${NC}"
+else
+    echo -e "  - Kubernetes Dashboard: ${YELLOW}Not installed${NC}"
+fi
+
+# PostgreSQL
+if [ "${postgres_installed:-false}" = true ]; then
+    echo -e "  - PostgreSQL: ${GREEN}Already installed${NC}"
+elif [ "$install_postgres" = true ]; then
+    echo -e "  - PostgreSQL: ${GREEN}Newly installed${NC}"
+else
+    echo -e "  - PostgreSQL: ${YELLOW}Not installed${NC}"
+fi
+
+# Redis
+if [ "${redis_installed:-false}" = true ]; then
+    echo -e "  - Redis: ${GREEN}Already installed${NC}"
+elif [ "$install_redis" = true ]; then
+    echo -e "  - Redis: ${GREEN}Newly installed${NC}"
+else
+    echo -e "  - Redis: ${YELLOW}Not installed${NC}"
+fi
+
+# Kafka
+if [ "${kafka_installed:-false}" = true ]; then
+    echo -e "  - Kafka: ${GREEN}Already installed${NC}"
+elif [ "$install_kafka" = true ]; then
+    echo -e "  - Kafka: ${GREEN}Newly installed${NC}"
+else
+    echo -e "  - Kafka: ${YELLOW}Not installed${NC}"
+fi
+
+# Vault
+if [ "${vault_installed:-false}" = true ]; then
+    echo -e "  - Vault: ${GREEN}Already installed${NC}"
+elif [ "$install_vault" = true ]; then
+    echo -e "  - Vault: ${GREEN}Newly installed${NC}"
+else
+    echo -e "  - Vault: ${YELLOW}Not installed${NC}"
+fi
+
+# Prometheus
+if [ "${prometheus_installed:-false}" = true ]; then
+    echo -e "  - Prometheus: ${GREEN}Already installed${NC}"
+elif [ "$install_prometheus" = true ]; then
+    echo -e "  - Prometheus: ${GREEN}Newly installed${NC}"
+else
+    echo -e "  - Prometheus: ${YELLOW}Not installed${NC}"
+fi
+
+# Grafana
+if [ "${grafana_installed:-false}" = true ]; then
+    echo -e "  - Grafana: ${GREEN}Already installed${NC}"
+elif [ "$install_grafana" = true ]; then
+    echo -e "  - Grafana: ${GREEN}Newly installed${NC}"
+else
+    echo -e "  - Grafana: ${YELLOW}Not installed${NC}"
+fi
+
+# Elasticsearch/Kibana
+if [ "${elasticsearch_installed:-false}" = true ]; then
+    echo -e "  - Elasticsearch/Kibana: ${GREEN}Already installed${NC}"
+elif [ "$install_elasticsearch" = true ]; then
+    echo -e "  - Elasticsearch/Kibana: ${GREEN}Newly installed${NC}"
+else
+    echo -e "  - Elasticsearch/Kibana: ${YELLOW}Not installed${NC}"
+fi
+
+# Keycloak
+if [ "${keycloak_installed:-false}" = true ]; then
+    echo -e "  - Keycloak: ${GREEN}Already installed${NC}"
+elif [ "$install_keycloak" = true ]; then
+    echo -e "  - Keycloak: ${GREEN}Newly installed${NC}"
+else
+    echo -e "  - Keycloak: ${YELLOW}Not installed${NC}"
+fi
+
+# Ingress
+if [ "${ingress_installed:-false}" = true ]; then
+    echo -e "  - Ingress (Nginx): ${GREEN}Already installed${NC}"
+elif [ "$install_ingress" = true ]; then
+    echo -e "  - Ingress (Nginx): ${GREEN}Newly installed${NC}"
+else
+    echo -e "  - Ingress: ${YELLOW}Not installed${NC}"
+fi
+
+# MinIO
+if [ "${minio_installed:-false}" = true ]; then
+    echo -e "  - MinIO: ${GREEN}Already installed${NC}"
+elif [ "$install_minio" = true ]; then
+    echo -e "  - MinIO: ${GREEN}Newly installed${NC}"
+else
+    echo -e "  - MinIO: ${YELLOW}Not installed${NC}"
+fi
 
 echo -e "\n${YELLOW}Use 'kubectl get pods -A' to verify all pods are in RUNNING state.${NC}"
 echo -e "${GREEN}Setup completed successfully!${NC}"
