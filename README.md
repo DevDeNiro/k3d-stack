@@ -25,21 +25,12 @@ Production-like Kubernetes environment using [k3d](https://k3d.io/) + [K3s](http
 
 ---
 
-### ℹ️ Database Access - PostgreSQL & Redis
+## Prerequisites
 
-**PostgreSQL Access:**
+- **Docker Desktop** (running)
+- **k3d** ≥ v5.0 – [Install](https://k3d.io/#installation)
+- **kubectl** – [Install](https://kubernetes.io/docs/tasks/tools/)
 
-- **CLI**: `kubectl exec -it postgresql-0 -n storage -- psql -U postgres`
-- **Connection URL**: `postgresql://myapp:$(cat postgres_password.txt)@localhost:30432/myapp`
-- **From cluster**: `postgresql://myapp:PASSWORD@postgresql.storage.svc.cluster.local:5432/myapp`
-
-**Redis Access:**
-
-- **CLI**: `kubectl exec -it redis-master-0 -n storage -- redis-cli`
-- **Connection URL**: `redis://:$(cat redis_password.txt)@localhost:30379`
-- **From cluster**: `redis://:PASSWORD@redis-master.storage.svc.cluster.local:6379`
-
-> Services exposed on NodePort - PostgreSQL: 30432, Redis: 30379
 ---
 
 ## Quick Start
@@ -64,15 +55,24 @@ k3d cluster start dev-cluster
 
 ---
 
-## Prerequisites
+### ℹ️ Database Access - PostgreSQL & Redis
 
-- **Docker Desktop** (running)
-- **k3d** ≥ v5.0 – [Install](https://k3d.io/#installation)
-- **kubectl** – [Install](https://kubernetes.io/docs/tasks/tools/)
+**PostgreSQL Access:**
 
+- **CLI**: `kubectl exec -it postgresql-0 -n storage -- psql -U postgres`
+- **Connection URL**: `postgresql://myapp:$(cat postgres_password.txt)@localhost:30432/myapp`
+- **From cluster**: `postgresql://myapp:PASSWORD@postgresql.storage.svc.cluster.local:5432/myapp`
+
+**Redis Access:**
+
+- **CLI**: `kubectl exec -it redis-master-0 -n storage -- redis-cli`
+- **Connection URL**: `redis://:$(cat redis_password.txt)@localhost:30379`
+- **From cluster**: `redis://:PASSWORD@redis-master.storage.svc.cluster.local:6379`
+
+> Services exposed on NodePort - PostgreSQL: 30432, Redis: 30379
 ---
 
-## Essential Commands
+### Essential Commands
 
 ```bash
 # Check everything is running
@@ -93,7 +93,7 @@ k3d cluster delete dev-cluster
 ```
 ---
 
-## Development Workflow
+### Development Workflow
 
 1. **Start:** `./install.sh` → Select services to install
 2. **Access:** `./deploy-ingress.sh` → Get clean URLs
@@ -103,7 +103,7 @@ k3d cluster delete dev-cluster
 
 ---
 
-## Quick Fixes
+### Quick Fixes
 
 **Ingress not working?**
 
