@@ -1,12 +1,9 @@
 # Authentication configuration
 auth:
-    # Enable password authentication
     enablePostgresUser: true
-    # Default database to create
     database: "myapp"
-    # Application user
     username: "myapp"
-    # Passwords will be set via command line for security
+    # Passwords will be set via command line for security (eg. ./install.sh)
 
 architecture: standalone
 
@@ -19,7 +16,6 @@ primary:
             memory: "512Mi"
             cpu: "500m"
 
-    # Storage configuration
     persistence:
         enabled: true
         size: "4Gi"
@@ -34,15 +30,15 @@ primary:
         host all all ::1/128 md5
         host all all 0.0.0.0/0 md5
 
-    # Custom PostgreSQL configuration
     configuration: |
         shared_buffers = 128MB
         effective_cache_size = 256MB
-        
         max_connections = 100
         
-        log_statement = 'all'
-        log_duration = on
+        listen_addresses = '*'
+        
+        log_statement = 'mod'
+        log_duration = off
         log_line_prefix = '%t [%p]: [%l-1] user=%u,db=%d,app=%a,client=%h '
         
         random_page_cost = 1.1
@@ -53,6 +49,8 @@ service:
     type: ClusterIP
     ports:
         postgresql: 5432
+    annotations:
+        service.beta.kubernetes.io/external-traffic: OnlyLocal
 
 # Metrics and monitoring
 metrics:
@@ -64,8 +62,6 @@ metrics:
             prometheus.io/port: "9187"
     serviceMonitor:
         enabled: false
-        labels: { }
-        annotations: { }
 
 # Security context
 securityContext:
@@ -73,28 +69,13 @@ securityContext:
     fsGroup: 1001
     runAsUser: 1001
 
-# Pod annotations
-podAnnotations: { }
-
 # Pod labels
 podLabels:
     app: postgresql
     component: database
 
-# Backup configuration (optional)
-backup:
-    enabled: false
-
-# Network policy
-networkPolicy:
-    enabled: false
-
-# Init containers for additional setup
-initContainers: [ ]
-
-# Additional environment variables
-extraEnvVars: [ ]
-
-# Volume mounts for additional configuration
-extraVolumeMounts: [ ]
-extraVolumes: [ ]
+extraEnvVars:
+    - name: POSTGRESQL_LOG_CONNECTIONS
+      value: "true"
+    - name: POSTGRESQL_LOG_DISCONNECTIONS
+      value: "true"

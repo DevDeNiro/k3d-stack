@@ -2,12 +2,9 @@ architecture: standalone
 
 auth:
     enabled: true
-    # Password will be set via command line for security
     sentinel: false
 
-# Master configuration
 master:
-    # Resource requests and limits
     resources:
         requests:
             memory: "256Mi"
@@ -16,7 +13,6 @@ master:
             memory: "512Mi"
             cpu: "200m"
 
-    # Persistence configuration
     persistence:
         enabled: true
         size: "4Gi"
@@ -24,7 +20,6 @@ master:
         accessModes:
             - ReadWriteOnce
 
-    # Redis configuration
     configuration: |
         maxmemory 256mb
         maxmemory-policy allkeys-lru
@@ -35,10 +30,15 @@ master:
         
         protected-mode yes
         
+        bind 0.0.0.0
+        
         tcp-keepalive 300
         timeout 0
+        tcp-backlog 511
         
         loglevel notice
+        
+        latency-monitor-threshold 100
 
     podAnnotations:
         prometheus.io/scrape: "true"
@@ -52,16 +52,17 @@ master:
         type: ClusterIP
         ports:
             redis: 6379
+        # AJOUT: Pour faciliter l'accès
+        annotations:
+            service.beta.kubernetes.io/external-traffic: OnlyLocal
 
 # Replica configuration (disabled for standalone)
 replica:
     replicaCount: 0
 
-# Sentinel configuration (disabled)
 sentinel:
     enabled: false
 
-# Metrics and monitoring
 metrics:
     enabled: true
     resources:
@@ -80,69 +81,24 @@ metrics:
 
     serviceMonitor:
         enabled: false
-        labels: { }
-        annotations: { }
 
-# Security context
-securityContext:
-    enabled: true
-    fsGroup: 1001
-    runAsUser: 1001
-
-# Network policy
-networkPolicy:
-    enabled: false
-    allowExternal: true
-
-# Pod Disruption Budget
-pdb:
-    create: false
-    minAvailable: 1
-
-# Init containers
-initContainers: [ ]
-
-# Sidecar containers
-sidecars: [ ]
-
-# Extra environment variables
-extraEnvVars: [ ]
-
-# Additional volumes
-extraVolumes: [ ]
-extraVolumeMounts: [ ]
-
-# Redis command arguments
-args: [ ]
-
-# Custom command
-command: [ ]
-
-# Startup, liveness and readiness probes
-startupProbe:
-    enabled: false
-
+# Probes améliorées pour dev
 livenessProbe:
     enabled: true
     initialDelaySeconds: 20
-    periodSeconds: 5
+    periodSeconds: 10
     timeoutSeconds: 5
     successThreshold: 1
-    failureThreshold: 5
+    failureThreshold: 3
 
 readinessProbe:
     enabled: true
     initialDelaySeconds: 20
-    periodSeconds: 5
-    timeoutSeconds: 1
+    periodSeconds: 10
+    timeoutSeconds: 5
     successThreshold: 1
-    failureThreshold: 5
+    failureThreshold: 3
 
-# TLS configuration (disabled by default)
-tls:
-    enabled: false
-
-# Common labels to apply to all resources
-commonLabels:
-    app: redis
-    tier: cache
+extraEnvVars:
+    -   name: REDIS_AOF_ENABLED
+        value: "no"

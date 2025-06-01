@@ -142,13 +142,11 @@ confirm() {
     fi
 }
 
-# Deploy Ingress for each service
 deploy_ingress_if_namespace_exists "security" "keycloak" "keycloak.local" 80
 deploy_ingress_if_namespace_exists "monitoring" "grafana" "grafana.local" 80
 deploy_ingress_if_namespace_exists "monitoring" "prometheus-server" "prometheus.local" 80
+deploy_ingress_if_namespace_exists "monitoring" "alertmanager" "alertmanager.local" 9093
 deploy_ingress_if_namespace_exists "storage" "minio-console" "minio.local" 9001
-deploy_ingress_if_namespace_exists "storage" "postgresql" "postgres.local" 5432
-deploy_ingress_if_namespace_exists "storage" "redis-master" "redis.local" 6379
 deploy_ingress_if_namespace_exists "logging" "kibana-kibana" "kibana.local" 5601
 
 # Deploy Vault Ingress
@@ -171,7 +169,16 @@ echo -e "\n${GREEN}Ingress configuration completed!${NC}"
 # Configure local hosts if not already done
 echo -e "\n${YELLOW}Configuring local hosts...${NC}"
 HOSTS_FILE="/etc/hosts"
-DOMAINS=("keycloak.local" "grafana.local" "prometheus.local" "minio.local" "kibana.local" "vault.local" "kafka-ui.local" "dashboard.local")
+DOMAINS=(
+    "keycloak.local"
+    "grafana.local"
+    "prometheus.local"
+    "alertmanager.local"
+    "minio.local"
+    "kibana.local"
+    "vault.local"
+    "kafka-ui.local"
+ )
 
 for domain in "${DOMAINS[@]}"; do
     if ! grep -q "127.0.0.1.*$domain" "$HOSTS_FILE"; then
@@ -189,26 +196,22 @@ if [ "$SERVICE_TYPE" = "LoadBalancer" ]; then
     echo -e "${GREEN}Keycloak:${NC} http://keycloak.local"
     echo -e "${GREEN}Grafana:${NC} http://grafana.local"
     echo -e "${GREEN}Prometheus:${NC} http://prometheus.local"
+    echo -e "${GREEN}AlertManager:${NC} http://alertmanager.local"
     echo -e "${GREEN}MinIO Console:${NC} http://minio.local"
-    echo -e "${GREEN}PostgreSQL:${NC} http://postgres.local"
-    echo -e "${GREEN}Redis:${NC} http://redis.local"
     echo -e "${GREEN}Vault:${NC} http://vault.local"
-    echo -e "${GREEN}Kibana:${NC} http://kibana.local "
-    echo -e "${GREEN}Kafka UI:${NC} http://kafka-ui.local "
-    echo -e "${GREEN}Dashboard:${NC} http://dashboard.local "
+    echo -e "${GREEN}Kibana:${NC} http://kibana.local"
+    echo -e "${GREEN}Kafka UI:${NC} http://kafka-ui.local"
     echo -e "\n${YELLOW}LoadBalancer mode detected - using standard ports (80/443)${NC}"
 else
     echo -e "${GREEN}Keycloak:${NC} http://keycloak.local:30080"
     echo -e "${GREEN}Grafana:${NC} http://grafana.local:30080"
     echo -e "${GREEN}Prometheus:${NC} http://prometheus.local:30080"
+    echo -e "${GREEN}AlertManager:${NC} http://alertmanager.local:30080"
     echo -e "${GREEN}MinIO Console:${NC} http://minio.local:30080"
-    echo -e "${GREEN}PostgreSQL:${NC} http://postgres.local:30080"
-    echo -e "${GREEN}Redis:${NC} http://redis.local:30080"
     echo -e "${GREEN}Vault:${NC} http://vault.local:30080"
-    echo -e "${GREEN}Kibana:${NC} http://kibana.local:30080 (if deployed)"
-    echo -e "${GREEN}Kafka UI:${NC} http://kafka-ui.local:30080 (if deployed)"
-    echo -e "${GREEN}Dashboard:${NC} http://dashboard.local:30080 (if deployed)"
-    echo -e "\n${YELLOW}NodePort mode detected - using port 30080${NC}"
+    echo -e "${GREEN}Kibana:${NC} http://kibana.local:30080"
+    echo -e "${GREEN}Kafka UI:${NC} http://kafka-ui.local:30080"
+    echo -e "\n${YELLOW}NodePort mode detected - using ports 30080 (HTTP) and 30443 (HTTPS)${NC}"
     echo -e "${YELLOW}To switch to LoadBalancer mode, run: ./switch-to-loadbalancer.sh${NC}"
 fi
 

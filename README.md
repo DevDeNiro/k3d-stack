@@ -22,6 +22,24 @@ Production-like Kubernetes environment using [k3d](https://k3d.io/) + [K3s](http
 > The Kubernetes Dashboard runs on `https://localhost:8443` via port-forwarding instead of Ingress. This approach
 > provides better security and token validation for local development. Use `./dashboard.sh` to manage port-forwarding
 > easily (start, stop, open browser, get token).
+
+---
+
+### ℹ️ Database Access - PostgreSQL & Redis
+
+**PostgreSQL Access:**
+
+- **CLI**: `kubectl exec -it postgresql-0 -n storage -- psql -U postgres`
+- **Connection URL**: `postgresql://myapp:$(cat postgres_password.txt)@localhost:30432/myapp`
+- **From cluster**: `postgresql://myapp:PASSWORD@postgresql.storage.svc.cluster.local:5432/myapp`
+
+**Redis Access:**
+
+- **CLI**: `kubectl exec -it redis-master-0 -n storage -- redis-cli`
+- **Connection URL**: `redis://:$(cat redis_password.txt)@localhost:30379`
+- **From cluster**: `redis://:PASSWORD@redis-master.storage.svc.cluster.local:6379`
+
+> Services exposed on NodePort - PostgreSQL: 30432, Redis: 30379
 ---
 
 ## Quick Start
@@ -37,13 +55,13 @@ chmod +x deploy-ingress.sh && ./deploy-ingress.sh
 open http://keycloak.local:30080
 ```
 
-**That's it!** All services accessible via clean URLs, no port-forwarding needed.
+Use the following command to Stop & Start the cluster :
 
-Use it like so : 
 ``` 
 k3d cluster stop dev-cluster
 k3d cluster start dev-cluster
 ```
+
 ---
 
 ## Prerequisites

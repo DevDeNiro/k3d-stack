@@ -388,7 +388,7 @@ if k3d cluster list | grep -q "dev-cluster"; then
     fi
 
     echo -e "\n${YELLOW}Choose an option:${NC}"
-    echo -e "  1) Keep existing cluster and only install/update services"
+    echo -e "  1) Keep existing cluster and install missing services"
     echo -e "  2) Delete existing cluster and create a fresh one"
     echo -e "  3) Exit without changes"
 
@@ -419,7 +419,7 @@ if k3d cluster list | grep -q "dev-cluster"; then
     esac
 fi
 
-# Ask for service installation
+### SERVICE INSTALLATION ###
 echo -e "\n${YELLOW}Select services to install:${NC}"
 install_dashboard=false
 install_postgres=false
@@ -688,8 +688,11 @@ if [ "$install_postgres" = true ]; then
         --set auth.password="$POSTGRES_PASSWORD" \
         -f helm/postgresql-values.yaml --wait --timeout 120s
 
-    echo -e "${GREEN}PostgreSQL deployed successfully!${NC}"
+    echo -e "${GREEN}PostgreSQL deployed successfully!${NC}" postgresql-nodeport
     echo -e "${YELLOW}PostgreSQL credentials saved to postgres_password.txt${NC}"
+
+    kubectl apply -f kube/postgresql-nodeport.yaml
+    echo -e "${GREEN}PostgreSQL NodePort service created on port 30432${NC}"
 fi
 
 if [ "$install_redis" = true ]; then
@@ -710,6 +713,9 @@ if [ "$install_redis" = true ]; then
 
     echo -e "${GREEN}Redis deployed successfully!${NC}"
     echo -e "${YELLOW}Redis credentials saved to redis_password.txt${NC}"
+
+    kubectl apply -f kube/redis-nodeport.yaml
+    echo -e "${GREEN}Redis NodePort service created on port 30379${NC}"
 fi
 
 if [ "$install_kafka" = true ]; then
