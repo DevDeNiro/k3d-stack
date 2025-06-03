@@ -686,11 +686,12 @@ if [ "$install_postgres" = true ]; then
         --set auth.database=myapp \
         --set auth.username=myapp \
         --set auth.password="$POSTGRES_PASSWORD" \
-        -f helm/postgresql-values.yaml --wait --timeout 120s
+        -f helm/postgresql-values.yaml --wait --timeout 300s
 
     echo -e "${GREEN}PostgreSQL deployed successfully!${NC}" postgresql-nodeport
     echo -e "${YELLOW}PostgreSQL credentials saved to postgres_password.txt${NC}"
 
+    # kubectl port-forward -n storage svc/postgresql 5432:5432 # to use for local dev
     kubectl apply -f kube/postgresql-nodeport.yaml
     echo -e "${GREEN}PostgreSQL NodePort service created on port 30432${NC}"
 fi
@@ -741,6 +742,12 @@ if [ "$install_kafka" = true ]; then
 
     echo -e "${GREEN}Kafka UI deployed successfully!${NC}"
     echo -e "${YELLOW}Access Kafka UI at: http://kafka-ui.local (after setting up Ingress)${NC}"
+
+    kubectl apply -f kube/kafka-nodeport.yaml
+    echo -e "${GREEN}Kafka NodePort service created on port 30092${NC}"
+
+    kubectl apply -f kube/schema-registry.yaml
+    echo -e "${GREEN}Schema Registry NodePort service created on port 30081${NC}"
 fi
 
 if [ "$install_keycloak" = true ]; then

@@ -41,14 +41,11 @@ chmod +x install.sh && ./install.sh
 
 # 2. Setup clean URLs  
 chmod +x deploy-ingress.sh && ./deploy-ingress.sh
-
-# 3. Access services
-open http://keycloak.local:30080
 ```
 
-Use the following command to Stop & Start the cluster :
+```
+# Use the following command to Stop & Start the cluster :
 
-``` 
 k3d cluster stop dev-cluster
 k3d cluster start dev-cluster
 ```
@@ -60,7 +57,7 @@ k3d cluster start dev-cluster
 **PostgreSQL Access:**
 
 - **CLI**: `kubectl exec -it postgresql-0 -n storage -- psql -U postgres`
-- **Connection URL**: `postgresql://myapp:$(cat postgres_password.txt)@localhost:30432/myapp`
+- **Connection from Localhost **: `kubectl port-forward -n storage svc/postgresql 5432:5432`
 - **From cluster**: `postgresql://myapp:PASSWORD@postgresql.storage.svc.cluster.local:5432/myapp`
 
 **Redis Access:**
@@ -91,6 +88,7 @@ kubectl get ingress -A
 # Cleanup
 k3d cluster delete dev-cluster
 ```
+
 ---
 
 ### Development Workflow
