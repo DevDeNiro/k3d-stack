@@ -87,6 +87,10 @@ kubectl get ingress -A
 
 # Cleanup
 k3d cluster delete dev-cluster
+
+# Monitor resources usage 
+kubectl top nodes
+kubectl describe nodes
 ```
 
 ---

@@ -4,19 +4,16 @@ set -euo pipefail
 # Change to script directory (repository root) to find files
 cd "$(dirname "$0")"
 
-# Color definitions for better readability
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Print header
 echo -e "${BLUE}===============================================${NC}"
 echo -e "${BLUE}    K3s Cluster Setup on K3d Installation    ${NC}"
 echo -e "${BLUE}===============================================${NC}"
 
-# Function to check if a command exists
 check_command() {
     if ! command -v "$1" >/dev/null 2>&1; then
         echo -e "${RED}Error: $1 is not installed or not in PATH${NC}"
@@ -28,11 +25,8 @@ check_command() {
     fi
 }
 
-# Function to clean up Docker resources
 cleanup_docker() {
     echo -e "${YELLOW}Cleaning up Docker resources...${NC}"
-
-    # Stop and remove any existing k3d containers
     docker ps -a --filter "name=k3d-dev-cluster" -q | xargs -r docker rm -v -f
 
     # Remove k3d networks
@@ -44,7 +38,6 @@ cleanup_docker() {
     echo -e "${GREEN}Docker cleanup completed${NC}"
 }
 
-# Function to create storage directory
 create_storage_dir() {
     local storage_dir="$HOME/.k3d/storage"
     if [ ! -d "$storage_dir" ]; then
@@ -89,7 +82,6 @@ install_prometheus_operator_crds() {
     echo -e "${GREEN}Prometheus Operator CRDs installed successfully!${NC}"
 }
 
-# Function to check is a service is already installed
 check_service_installed() {
     local service_name="$1"
     local namespace="$2"
@@ -102,7 +94,6 @@ check_service_installed() {
     fi
 }
 
-# Fonction to detect the service installed
 detect_installed_services() {
     echo -e "\n${YELLOW}Detecting installed services...${NC}"
 
@@ -267,7 +258,6 @@ start_port_forward() {
     return 0
 }
 
-# Function to copy token to clipboard
 copy_token_to_clipboard() {
     local token="$1"
 
@@ -722,7 +712,7 @@ fi
 if [ "$install_kafka" = true ]; then
     echo -e "\n${YELLOW}>>> Deploying Kafka...${NC}"
     helm install kafka bitnami/kafka --namespace messaging --create-namespace \
-        -f helm/kafka-values.yaml --wait --timeout 120s
+        -f helm/kafka-values.yaml --wait --timeout 300s
     echo -e "${GREEN}Kafka deployed successfully!${NC}"
 
     # Install Kafka UI automatically with Kafka
@@ -730,7 +720,7 @@ if [ "$install_kafka" = true ]; then
 
     # Wait a bit for Kafka to be fully ready
     echo -e "${YELLOW}Waiting for Kafka to be ready before deploying UI...${NC}"
-    kubectl wait --for=condition=Ready pods -l app.kubernetes.io/name=kafka -n messaging --timeout=120s || true
+    kubectl wait --for=condition=Ready pods -l app.kubernetes.io/name=kafka -n messaging --timeout=300s || true
     sleep 10
 
     # Deploy Kafka UI
@@ -738,16 +728,10 @@ if [ "$install_kafka" = true ]; then
 
     # Wait for Kafka UI to be ready
     echo -e "${YELLOW}Waiting for Kafka UI to be ready...${NC}"
-    kubectl wait --for=condition=available deployment/kafka-ui -n messaging --timeout=120s || true
+    kubectl wait --for=condition=available deployment/kafka-ui -n messaging --timeout=300s || true
 
     echo -e "${GREEN}Kafka UI deployed successfully!${NC}"
     echo -e "${YELLOW}Access Kafka UI at: http://kafka-ui.local (after setting up Ingress)${NC}"
-
-    kubectl apply -f kube/kafka-nodeport.yaml
-    echo -e "${GREEN}Kafka NodePort service created on port 30092${NC}"
-
-    kubectl apply -f kube/schema-registry.yaml
-    echo -e "${GREEN}Schema Registry NodePort service created on port 30081${NC}"
 fi
 
 if [ "$install_keycloak" = true ]; then
@@ -842,7 +826,7 @@ if [ "$install_ingress" = true ]; then
             --set controller.resources.requests.memory=64Mi \
             --set controller.resources.limits.cpu=200m \
             --set controller.resources.limits.memory=256Mi \
-            -f helm/ingress-nginx-values.yaml --wait --timeout 120s; then
+            -f helm/ingress-nginx-values.yaml --wait --timeout 180s; then
 
             echo -e "${GREEN}Nginx Ingress Controller deployed successfully!${NC}"
             break
@@ -937,11 +921,11 @@ if [ "$install_dashboard" = true ]; then
     echo -e "\n${YELLOW}>>> Deploying Kubernetes Dashboard...${NC}"
     helm install kubernetes-dashboard kubernetes-dashboard/kubernetes-dashboard \
         --namespace kubernetes-dashboard --create-namespace \
-        -f helm/dashboard-values.yaml --wait --timeout 120s
+        -f helm/dashboard-values.yaml --wait --timeout 900s
 
     # Wait for dashboard pods to be ready
     echo -e "${YELLOW}Waiting for dashboard pods to be ready...${NC}"
-    kubectl wait --for=condition=Ready pods --all -n kubernetes-dashboard --timeout=120s || true
+    kubectl wait --for=condition=Ready pods --all -n kubernetes-dashboard --timeout=300s || true
 
     # Create admin user for Dashboard
     echo -e "${YELLOW}>>> Configuring Dashboard access (admin ServiceAccount)...${NC}"
@@ -1018,7 +1002,6 @@ if [ "$install_dashboard" = true ]; then
     echo -e "${GREEN} Kubernetes Dashboard is deployed!${NC}"
     echo -e "${GREEN} Access URLs:${NC}"
     echo -e "${GREEN} - Port-forward URL (recommended): https://localhost:8443${NC}"
-    echo -e "${GREEN} - NodePort URL (if configured): https://localhost:30080${NC}"
     echo -e "${GREEN} Authentication token (admin-user):${NC}"
     echo -e "${YELLOW}$DASH_TOKEN${NC}"
     echo -e "${GREEN} Manual port-forward command:${NC}"
@@ -1058,7 +1041,7 @@ if [ "$install_kafka" = true ]; then
     echo -e "\n${GREEN}=== Messaging Service Access ===${NC}"
     echo -e "${YELLOW}Access Kafka${NC}"
     echo -e "${YELLOW}Inside the cluster: kafka.messaging.svc.cluster.local:9092${NC}"
-    echo -e "${YELLOW}For external access, you may need to create a NodePort or use port forwarding${NC}"
+    echo -e "${YELLOW}For external access, execute ./deploy-ingress.sh or use port forwarding${NC}"
     echo -e "${YELLOW}Example port-forward: kubectl port-forward svc/kafka 9092:9092 -n messaging${NC}"
 fi
 

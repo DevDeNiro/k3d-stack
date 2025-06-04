@@ -1,13 +1,12 @@
 #!/bin/bash
 
-### Script to deploy Ingress for currently deployed services ###
-
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 RED='\033[0;31m'
+BLUE='\033[0;34m'
 NC='\033[0m'
 
-echo -e "${YELLOW}Configuring Ingress for deployed services...${NC}"
+echo -e "${BLUE}=== Configuring Ingress for deployed services ===${NC}"
 
 # Check if Ingress Controller is installed
 if ! kubectl get deployment ingress-nginx-controller -n ingress-nginx >/dev/null 2>&1; then
@@ -29,6 +28,12 @@ deploy_ingress_if_namespace_exists() {
 
         # Check if service exists
         if kubectl get service "$service_name" -n "$namespace" >/dev/null 2>&1; then
+            # Check if Ingress already exists
+            if kubectl get ingress "$ingress_name" -n "$namespace" >/dev/null 2>&1; then
+                echo -e "${GREEN}✓ Ingress $ingress_name already exists${NC}"
+                return 0
+            fi
+
             kubectl apply -f - <<EOF
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -37,6 +42,10 @@ metadata:
   namespace: $namespace
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
     $additional_annotations
 spec:
   ingressClassName: nginx
@@ -61,17 +70,23 @@ EOF
     fi
 }
 
-# Function for Vault (HTTP API)
 deploy_vault_ingress() {
     if kubectl get namespace vault >/dev/null 2>&1; then
         echo -e "${YELLOW}Deploying Ingress for Vault...${NC}"
 
         if kubectl get service vault -n vault >/dev/null 2>&1; then
+            if kubectl get ingress vault-ingress -n vault >/dev/null 2>&1; then
+                echo -e "${GREEN}✓ Vault Ingress already exists${NC}"
+                return 0
+            fi
+
             kubectl apply -f kube/vault-ingress.yaml
             echo -e "${GREEN}✓ Ingress vault-ingress created${NC}"
         else
             echo -e "${YELLOW}⚠ Vault service not found in vault namespace${NC}"
         fi
+    else
+        echo -e "${YELLOW}⚠ Vault namespace not found${NC}"
     fi
 }
 
@@ -80,10 +95,8 @@ deploy_kafka_ui_ingress() {
     if kubectl get namespace messaging >/dev/null 2>&1; then
         if kubectl get deployment kafka-ui -n messaging >/dev/null 2>&1; then
             echo -e "${YELLOW}Deploying Ingress for existing Kafka UI...${NC}"
-
             kubectl apply -f kube/kafka-ui-ingress.yaml
-            echo -e "${GREEN}✓ Ingress kafka-ui-ingress created${NC}"
-            return 0
+            echo -e "${GREEN}✓ Ingress kafka-ui-ingress created inline${NC}"
         fi
     fi
     return 1
@@ -102,11 +115,12 @@ deploy_kafka_ui() {
 
         # Check if Kafka exists
         if kubectl get service kafka -n messaging >/dev/null 2>&1; then
-            # Deploy Kafka UI
-            kubectl apply -f kube/kafka-ui.yaml
+                echo -e "${YELLOW}Applying Kafka UI from kube/kafka-ui.yaml...${NC}"
+                kubectl apply -f kube/kafka-ui.yaml
+
             # Wait for deployment
             echo -e "${YELLOW}Waiting for Kafka UI to be ready...${NC}"
-            kubectl wait --for=condition=available deployment/kafka-ui -n messaging --timeout=120s || true
+            kubectl wait --for=condition=available deployment/kafka-ui -n messaging --timeout=180s || true
 
             # Create Ingress
             deploy_kafka_ui_ingress
@@ -142,6 +156,9 @@ confirm() {
     fi
 }
 
+echo -e "\n${YELLOW}=== Deploying Ingress for standard services ===${NC}"
+
+# Deploy Ingress for standard services
 deploy_ingress_if_namespace_exists "security" "keycloak" "keycloak.local" 80
 deploy_ingress_if_namespace_exists "monitoring" "grafana" "grafana.local" 80
 deploy_ingress_if_namespace_exists "monitoring" "prometheus-server" "prometheus.local" 80
@@ -149,9 +166,11 @@ deploy_ingress_if_namespace_exists "monitoring" "alertmanager" "alertmanager.loc
 deploy_ingress_if_namespace_exists "storage" "minio-console" "minio.local" 9001
 deploy_ingress_if_namespace_exists "logging" "kibana-kibana" "kibana.local" 5601
 
+echo -e "\n${YELLOW}=== Deploying Vault Ingress ===${NC}"
 # Deploy Vault Ingress
 deploy_vault_ingress
 
+echo -e "\n${YELLOW}=== Deploying Kafka UI ===${NC}"
 # Deploy Kafka UI Ingress (automatically if already installed, or ask to install)
 if ! deploy_kafka_ui_ingress; then
     # Kafka UI not found, ask if user wants to install it
@@ -166,8 +185,8 @@ fi
 
 echo -e "\n${GREEN}Ingress configuration completed!${NC}"
 
+echo -e "\n${YELLOW}=== Configuring local hosts ===${NC}"
 # Configure local hosts if not already done
-echo -e "\n${YELLOW}Configuring local hosts...${NC}"
 HOSTS_FILE="/etc/hosts"
 DOMAINS=(
     "keycloak.local"
@@ -178,42 +197,90 @@ DOMAINS=(
     "kibana.local"
     "vault.local"
     "kafka-ui.local"
- )
+)
 
 for domain in "${DOMAINS[@]}"; do
     if ! grep -q "127.0.0.1.*$domain" "$HOSTS_FILE"; then
         echo -e "${YELLOW}Adding $domain to hosts file${NC}"
         echo "127.0.0.1 $domain" | sudo tee -a "$HOSTS_FILE" > /dev/null
+        echo -e "${GREEN}✓ $domain added${NC}"
+    else
+        echo -e "${GREEN}✓ $domain already configured${NC}"
     fi
 done
 
+echo -e "\n${BLUE}=== Access Information ===${NC}"
+
+# Detect Ingress Controller service type and get NodePorts
+SERVICE_TYPE=$(kubectl get svc ingress-nginx-controller -n ingress-nginx -o jsonpath='{.spec.type}')
+NODEPORT_HTTP=$(kubectl get svc ingress-nginx-controller -n ingress-nginx -o jsonpath='{.spec.ports[?(@.name=="http")].nodePort}' 2>/dev/null)
+NODEPORT_HTTPS=$(kubectl get svc ingress-nginx-controller -n ingress-nginx -o jsonpath='{.spec.ports[?(@.name=="https")].nodePort}' 2>/dev/null)
+
+echo -e "${YELLOW}Ingress Controller Configuration:${NC}"
+echo -e "  Service Type: $SERVICE_TYPE"
+echo -e "  HTTP NodePort: $NODEPORT_HTTP"
+echo -e "  HTTPS NodePort: $NODEPORT_HTTPS"
+
 echo -e "\n${GREEN}=== Services accessible via Ingress ===${NC}"
 
-# Detect Ingress Controller service type
-SERVICE_TYPE=$(kubectl get svc ingress-nginx-controller -n ingress-nginx -o jsonpath='{.spec.type}')
+# Function to show service URL if service exists
+show_service_access() {
+    local namespace=$1
+    local service_name=$2
+    local display_name=$3
+    local host=$4
+
+    if kubectl get service "$service_name" -n "$namespace" >/dev/null 2>&1; then
+        if [ "$SERVICE_TYPE" = "LoadBalancer" ]; then
+            echo -e "${GREEN}✓ $display_name:${NC} http://$host"
+        else
+            echo -e "${GREEN}✓ $display_name:${NC} http://$host:$NODEPORT_HTTP"
+        fi
+    else
+        echo -e "${YELLOW}⚠ $display_name:${NC} Service not deployed"
+    fi
+}
+
+show_service_access "security" "keycloak" "Keycloak" "keycloak.local"
+show_service_access "monitoring" "grafana" "Grafana" "grafana.local"
+show_service_access "monitoring" "prometheus-server" "Prometheus" "prometheus.local"
+show_service_access "monitoring" "alertmanager" "AlertManager" "alertmanager.local"
+show_service_access "storage" "minio-console" "MinIO Console" "minio.local"
+show_service_access "logging" "kibana-kibana" "Kibana" "kibana.local"
+show_service_access "vault" "vault" "Vault" "vault.local"
+show_service_access "messaging" "kafka-ui" "Kafka UI" "kafka-ui.local"
 
 if [ "$SERVICE_TYPE" = "LoadBalancer" ]; then
-    echo -e "${GREEN}Keycloak:${NC} http://keycloak.local"
-    echo -e "${GREEN}Grafana:${NC} http://grafana.local"
-    echo -e "${GREEN}Prometheus:${NC} http://prometheus.local"
-    echo -e "${GREEN}AlertManager:${NC} http://alertmanager.local"
-    echo -e "${GREEN}MinIO Console:${NC} http://minio.local"
-    echo -e "${GREEN}Vault:${NC} http://vault.local"
-    echo -e "${GREEN}Kibana:${NC} http://kibana.local"
-    echo -e "${GREEN}Kafka UI:${NC} http://kafka-ui.local"
     echo -e "\n${YELLOW}LoadBalancer mode detected - using standard ports (80/443)${NC}"
 else
-    echo -e "${GREEN}Keycloak:${NC} http://keycloak.local:30080"
-    echo -e "${GREEN}Grafana:${NC} http://grafana.local:30080"
-    echo -e "${GREEN}Prometheus:${NC} http://prometheus.local:30080"
-    echo -e "${GREEN}AlertManager:${NC} http://alertmanager.local:30080"
-    echo -e "${GREEN}MinIO Console:${NC} http://minio.local:30080"
-    echo -e "${GREEN}Vault:${NC} http://vault.local:30080"
-    echo -e "${GREEN}Kibana:${NC} http://kibana.local:30080"
-    echo -e "${GREEN}Kafka UI:${NC} http://kafka-ui.local:30080"
-    echo -e "\n${YELLOW}NodePort mode detected - using ports 30080 (HTTP) and 30443 (HTTPS)${NC}"
+    echo -e "\n${YELLOW}NodePort mode detected - using ports $NODEPORT_HTTP (HTTP) and $NODEPORT_HTTPS (HTTPS)${NC}"
     echo -e "${YELLOW}To switch to LoadBalancer mode, run: ./switch-to-loadbalancer.sh${NC}"
 fi
 
-echo -e "\n${YELLOW}Check Ingress Controller status:${NC}"
-kubectl get svc -n ingress-nginx ingress-nginx-controller
+echo -e "\n${YELLOW}=== Status Check ===${NC}"
+echo -e "${YELLOW}Ingress Controller status:${NC}"
+kubectl get svc -n ingress-nginx ingress-nginx-controller --no-headers
+
+echo -e "\n${YELLOW}Deployed Ingresses:${NC}"
+kubectl get ingress -A --no-headers 2>/dev/null | grep -v "^$" || echo "No Ingresses found"
+
+echo -e "\n${GREEN}✅ Configuration completed successfully!${NC}"
+
+# Quick connectivity test
+if command -v curl >/dev/null 2>&1; then
+    echo -e "\n${YELLOW}=== Quick Connectivity Test ===${NC}"
+    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$NODEPORT_HTTP" 2>/dev/null || echo "000")
+
+    if [ "$HTTP_CODE" = "404" ]; then
+        echo -e "${GREEN}✓ Ingress Controller responding correctly (404 = normal, no default backend)${NC}"
+    elif [ "$HTTP_CODE" = "000" ]; then
+        echo -e "${RED}✗ Cannot connect to Ingress Controller on port $NODEPORT_HTTP${NC}"
+        echo -e "${YELLOW}  Check if the Ingress Controller is running properly${NC}"
+    else
+        echo -e "${YELLOW}⚠ Ingress Controller responding with HTTP code: $HTTP_CODE${NC}"
+    fi
+else
+    echo -e "\n${YELLOW}curl not available - skipping connectivity test${NC}"
+fi
+
+echo -e "\n${BLUE}🌐 Your services should now be accessible via the URLs listed above!${NC}"
