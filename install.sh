@@ -723,6 +723,14 @@ if [ "$install_kafka" = true ]; then
     kubectl wait --for=condition=Ready pods -l app.kubernetes.io/name=kafka -n messaging --timeout=300s || true
     sleep 10
 
+#    echo -e "${YELLOW}Creating Kafka NodePort service...${NC}"
+#    KAFKA_LABELS=$(kubectl get pod kafka-broker-0 -n messaging -o jsonpath='{.metadata.labels}' | jq -r 'to_entries | map(select(.key | startswith("app.kubernetes.io"))) | from_entries')
+#    echo "$KAFKA_LABELS"
+
+    # kubectl port-forward kafka-broker-0 9092:9092 -n messaging &
+    kubectl apply -f kube/kafka-nodeport.yaml
+    echo -e "${GREEN}Kafka NodePort service created on port 30092${NC}"
+
     # Deploy Kafka UI
     kubectl apply -f kube/kafka-ui.yaml
 

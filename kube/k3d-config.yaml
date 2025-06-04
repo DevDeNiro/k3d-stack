@@ -32,6 +32,19 @@ ports:
         nodeFilters:
             - server:0
 
+    # Kafka NodePort
+    -   port: 30092:30092
+        nodeFilters:
+            - server:0
+    # Redis
+    -   port: 30379:30379
+        nodeFilters:
+            - server:0
+    # PostgreSQL
+    -   port: 30432:30432
+        nodeFilters:
+            - server:0
+
 volumes:
     -   volume: /tmp/k3d-storage:/var/lib/rancher/k3s/storage
         nodeFilters:

@@ -16,4 +16,5 @@ spec:
             name: kafka-client
     selector:
         app.kubernetes.io/name: kafka
-        app.kubernetes.io/component: kafka
+        app.kubernetes.io/instance: kafka
+        app.kubernetes.io/component: broker
