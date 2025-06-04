@@ -20,8 +20,7 @@ ports:
     -   port: 443:443
         nodeFilters:
             - loadbalancer
-
-    # Ports NodePort if needed
+    # Ingress NodePort
     -   port: 30000:30000
         nodeFilters:
             - server:0
@@ -31,7 +30,6 @@ ports:
     -   port: 30443:30443
         nodeFilters:
             - server:0
-
     # Kafka NodePort
     -   port: 30092:30092
         nodeFilters:
