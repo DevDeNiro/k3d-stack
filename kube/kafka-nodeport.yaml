@@ -3,13 +3,17 @@ kind: Service
 metadata:
     name: kafka-nodeport
     namespace: messaging
+    labels:
+        app.kubernetes.io/name: kafka
+        app.kubernetes.io/component: kafka
 spec:
     type: NodePort
     ports:
         -   port: 9092
             targetPort: 9092
             nodePort: 30092
+            protocol: TCP
             name: kafka-client
     selector:
         app.kubernetes.io/name: kafka
-        app.kubernetes.io/instance: kafka
+        app.kubernetes.io/component: kafka
