@@ -34,6 +34,10 @@ ports:
     -   port: 30092:30092
         nodeFilters:
             - server:0
+    # Schema Registry NodePort
+    -   port: 30081:30081
+        nodeFilters:
+            - server:0
     # Redis
     -   port: 30379:30379
         nodeFilters:

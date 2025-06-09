@@ -7,6 +7,14 @@ image:
     tag: latest
     pullPolicy: IfNotPresent
 
+resources:
+    limits:
+        cpu: 500m
+        memory: 1Gi
+    requests:
+        cpu: 250m
+        memory: 512Mi
+
 kraft:
     enabled: true
     clusterId: "kafka-cluster-local"
@@ -15,13 +23,13 @@ zookeeper:
     enabled: false
 
 controller:
-    replicaCount: 1  # 3+ in prod
+    replicaCount: 1
     persistence:
         enabled: true
         size: 8Gi
 
 broker:
-    replicaCount: 1  # 3+ in prod
+    replicaCount: 1
     persistence:
         enabled: true
         size: 8Gi
@@ -31,24 +39,32 @@ listeners:
         name: CLIENT
         port: 9092
         protocol: PLAINTEXT
-    controller:
-        name: CONTROLLER
-        port: 9093
-        protocol: PLAINTEXT
     interbroker:
         name: INTERNAL
         port: 9094
         protocol: PLAINTEXT
+    external:
+        name: EXTERNAL
+        port: 9095
+        protocol: PLAINTEXT
 
-resources:
-    limits:
-        cpu: 500m
-        memory: 1Gi
-    requests:
-        cpu: 250m
-        memory: 512Mi
+externalAccess:
+    enabled: true
+    autoDiscovery:
+        enabled: true
+    broker:
+        service:
+            type: NodePort
+            nodePorts:
+                - 30092
+    controller:
+        service:
+            type: NodePort
+            nodePorts:
+                - 30093
+    rbac:
+        create: true
 
-# Kafka config
 extraConfig: |
     auto.create.topics.enable=true
     delete.topic.enable=true
@@ -56,3 +72,4 @@ extraConfig: |
     default.replication.factor=1
     log.retention.hours=24
     log.retention.bytes=1073741824
+    security.inter.broker.protocol=PLAINTEXT

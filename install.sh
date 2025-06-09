@@ -98,7 +98,7 @@ detect_installed_services() {
     echo -e "\n${YELLOW}Detecting installed services...${NC}"
 
     # Dashboard
-    if check_service_installed "kubernetes-dashboard" "kubernetes-dashboard"; then
+    if check_service_installed "kubernetes-dashboard-api" "kubernetes-dashboard"; then
         echo -e "${GREEN}✓ Kubernetes Dashboard is already installed${NC}"
         dashboard_installed=true
     else
@@ -712,34 +712,73 @@ fi
 if [ "$install_kafka" = true ]; then
     echo -e "\n${YELLOW}>>> Deploying Kafka...${NC}"
     helm install kafka bitnami/kafka --namespace messaging --create-namespace \
-        -f helm/kafka-values.yaml --wait --timeout 300s
+        -f helm/kafka-values.yaml --wait --timeout 900s
     echo -e "${GREEN}Kafka deployed successfully!${NC}"
 
-    # Install Kafka UI automatically with Kafka
-    echo -e "\n${YELLOW}>>> Deploying Kafka UI...${NC}"
+    # Wait for Kafka to be fully ready
+    echo -e "${YELLOW}Waiting for Kafka to be fully ready...${NC}"
+    kubectl wait --for=condition=Ready pods -l app.kubernetes.io/name=kafka -n messaging --timeout=900s
 
-    # Wait a bit for Kafka to be fully ready
-    echo -e "${YELLOW}Waiting for Kafka to be ready before deploying UI...${NC}"
-    kubectl wait --for=condition=Ready pods -l app.kubernetes.io/name=kafka -n messaging --timeout=300s || true
+    echo -e "${YELLOW}Verifying Kafka connectivity...${NC}"
+    timeout=60
+    counter=0
+    while [ $counter -lt $timeout ]; do
+        if kubectl exec kafka-broker-0 -n messaging -- kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1; then
+            echo -e "${GREEN}Kafka is responding to requests!${NC}"
+            break
+        fi
+        echo -e "${YELLOW}Waiting for Kafka to respond... ($counter/$timeout seconds)${NC}"
+        sleep 5
+        counter=$((counter + 5))
+    done
+
+    echo -e "${YELLOW}Verifying external Kafka access...${NC}"
+    if nc -z localhost 30092 2>/dev/null; then
+        echo -e "${GREEN}Kafka external access is available on port 30092${NC}"
+    else
+        echo -e "${YELLOW}Kafka external port not yet ready...${NC}"
+    fi
+
+    # Deploy Schema Registry
+    # echo -e "\n${YELLOW}>>> Deploying Schema Registry...${NC}"
+    # kubectl apply -f kube/schema-registry.yaml
+
+    # Wait for Schema Registry
+    # echo -e "${YELLOW}Waiting for Schema Registry to be ready...${NC}"
+    #if ! kubectl wait --for=condition=available deployment/schema-registry -n messaging --timeout=900s; then
+    #    echo -e "${RED}Schema Registry deployment timeout. Checking logs...${NC}"
+    #    kubectl logs deployment/schema-registry -n messaging
+    #    echo -e "${YELLOW}Continuing with deployment...${NC}"
+    #else
+    #    echo -e "${GREEN}Schema Registry deployed successfully!${NC}"
+    #fi
+
+    # Test Schema Registry accessibility
+    echo -e "${YELLOW}Testing Schema Registry accessibility...${NC}"
     sleep 10
-
-#    echo -e "${YELLOW}Creating Kafka NodePort service...${NC}"
-#    KAFKA_LABELS=$(kubectl get pod kafka-broker-0 -n messaging -o jsonpath='{.metadata.labels}' | jq -r 'to_entries | map(select(.key | startswith("app.kubernetes.io"))) | from_entries')
-#    echo "$KAFKA_LABELS"
-
-    # kubectl port-forward kafka-broker-0 9092:9092 -n messaging &
-    kubectl apply -f kube/kafka-nodeport.yaml
-    echo -e "${GREEN}Kafka NodePort service created on port 30092${NC}"
+    if curl -f -s http://localhost:30081/subjects >/dev/null 2>&1; then
+        echo -e "${GREEN}Schema Registry is accessible on port 30081${NC}"
+    else
+        echo -e "${YELLOW}Schema Registry may still be starting up...${NC}"
+    fi
 
     # Deploy Kafka UI
+    echo -e "\n${YELLOW}>>> Deploying Kafka UI...${NC}"
     kubectl apply -f kube/kafka-ui.yaml
 
-    # Wait for Kafka UI to be ready
+    # Wait for Kafka UI
     echo -e "${YELLOW}Waiting for Kafka UI to be ready...${NC}"
-    kubectl wait --for=condition=available deployment/kafka-ui -n messaging --timeout=300s || true
+    if ! kubectl wait --for=condition=available deployment/kafka-ui -n messaging --timeout=300s; then
+        echo -e "${YELLOW}Kafka UI taking longer than expected, but continuing...${NC}"
+        kubectl logs deployment/kafka-ui -n messaging --tail=20 | head -10
+    else
+        echo -e "${GREEN}Kafka UI deployed successfully!${NC}"
+    fi
 
-    echo -e "${GREEN}Kafka UI deployed successfully!${NC}"
-    echo -e "${YELLOW}Access Kafka UI at: http://kafka-ui.local (after setting up Ingress)${NC}"
+    echo -e "${GREEN}Kafka setup completed!${NC}"
+    echo -e "${YELLOW}Access Kafka UI at: http://kafka-ui.local (after configuring Ingress and /etc/hosts)${NC}"
+    echo -e "${YELLOW}Schema Registry: http://localhost:30081${NC}"
+    echo -e "${YELLOW}Kafka: localhost:30092${NC}"
 fi
 
 if [ "$install_keycloak" = true ]; then
