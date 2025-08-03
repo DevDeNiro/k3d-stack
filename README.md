@@ -33,6 +33,21 @@ Production-like Kubernetes environment using [k3d](https://k3d.io/) + [K3s](http
 
 ---
 
+## CI Lint Job
+
+A new CI lint job is configured in the `.gitlab-ci.yml` to ensure Helm charts are linted and validated before deployment. Here's how it works:
+
+- **Job Definition**: Uses Helm's official Docker image to run the `helm lint` command against the votchain chart.
+- **Run Locally**: You can run the same tests locally using:
+  ```bash
+  make helm-test
+  ```
+  Or run individual components:
+  ```bash
+  make helm-lint      # Just lint the charts
+  make helm-template  # Validate template generation
+  ```
+
 ## Quick Start
 
 ```bash
