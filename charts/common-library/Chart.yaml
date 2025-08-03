@@ -1,10 +1,11 @@
 apiVersion: v2
 name: common-library
-description: Common library chart for ephemeral environments
+description: Common library chart for ephemeral environments and VotChain services
 version: 1.0.0
 type: library
 
 # Library chart to provide reusable templates for all applications
+# Can be referenced by other repos via Git URL
 maintainers:
   - name: DevOps Team
     email: devops@company.com
@@ -14,3 +15,8 @@ keywords:
   - library
   - common
   - templates
+  - votchain
+
+home: https://gitlab.com/your-org/k3d-stack
+sources:
+  - https://gitlab.com/your-org/k3d-stack

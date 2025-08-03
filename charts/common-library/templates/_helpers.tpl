@@ -115,13 +115,13 @@ app.kubernetes.io/instance: {{ $ctx.Release.Name }}
 ServiceAccount
 */}}
 {{- define "common.serviceAccountName" -}}
-{{- if and .Values .Values.serviceAccount .Values.serviceAccount.create }}
-{{ default (include "common.name" .) .Values.serviceAccount.name }}
-{{- else if and .Values .Values.serviceAccount .Values.serviceAccount.name }}
-{{ .Values.serviceAccount.name }}
-{{- else }}
-{{ "default" }}
-{{- end }}
+{{- if and .Values .Values.serviceAccount .Values.serviceAccount.create -}}
+{{- default (include "common.name" .) .Values.serviceAccount.name -}}
+{{- else if and .Values .Values.serviceAccount .Values.serviceAccount.name -}}
+{{- .Values.serviceAccount.name -}}
+{{- else -}}
+default
+{{- end -}}
 {{- end }}
 
 {{/*
