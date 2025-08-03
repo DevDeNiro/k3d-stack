@@ -1,0 +1,174 @@
+# Global values for all VotChain services
+# This file centralizes common configuration across all projects
+
+global:
+  # Environment configuration (dynamically set by CI/CD)
+  environment: dev  # Will be overridden by CI_COMMIT_REF_SLUG
+  project: votchain
+  isMonoRepo: true  # Set to false for multi-repo strategy
+  baseDomain: local  # Change to your actual domain
+  createdBy: helm-ci
+
+  # Image registry configuration
+  imageRegistry: registry.gitlab.com/votchain  # Adjust to your registry
+  imagePullPolicy: IfNotPresent
+  
+  # Common resource limits
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+  # Health check configuration
+  healthcheck:
+    path: "/health"
+    initialDelaySeconds: 30
+    periodSeconds: 10
+
+  # Security context
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1001
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL
+
+  podSecurityContext:
+    fsGroup: 1001
+
+  # RBAC configuration
+  rbac:
+    create: true
+    createClusterRole: false  # Only create once per cluster
+
+  # Service account configuration
+  serviceAccount:
+    create: true
+    automount: false
+    annotations: {}
+
+  # Ingress configuration
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      nginx.ingress.kubernetes.io/rewrite-target: /
+      nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    path: "/"
+    pathType: Prefix
+    tls: []
+
+  # Node selector for scheduling
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+  # Pod annotations
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "3333"
+    prometheus.io/path: "/metrics"
+
+# Service-specific configurations
+services:
+  backend:
+    name: backend
+    port: 3333
+    targetPort: 3333
+    replicaCount: 2
+    image:
+      repository: votchain-backend
+      tag: latest
+    env:
+      NODE_ENV: production
+      PORT: "3333"
+    envSecrets:
+      DB_PASSWORD: postgres-password
+      APP_KEY: app-secret-key
+      RESEND_API_KEY: resend-api-key
+      BLOCKCHAIN_PRIVATE_KEY: blockchain-private-key
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "200m"
+      limits:
+        memory: "1Gi"
+        cpu: "800m"
+
+  mobile:
+    name: mobile
+    port: 8081
+    targetPort: 8081
+    replicaCount: 1
+    image:
+      repository: votchain-mobile
+      tag: latest
+    env:
+      EXPO_PUBLIC_API_URL: "https://backend.dev.local"
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "300m"
+
+  contract:
+    name: contract
+    port: 8545
+    targetPort: 8545
+    replicaCount: 1
+    image:
+      repository: votchain-contract
+      tag: latest
+    env:
+      NETWORK: sepolia
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "256Mi"
+        cpu: "200m"
+
+  admin-ui:
+    name: admin-ui
+    port: 3000
+    targetPort: 3000
+    replicaCount: 1
+    image:
+      repository: votchain-admin-ui
+      tag: latest
+    env:
+      NEXT_PUBLIC_API_URL: "https://backend.dev.local"
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "300m"
+
+# Database configuration
+postgresql:
+  enabled: true
+  auth:
+    postgresPassword: "dev-password"
+    database: "votchain"
+    username: "votchain"
+    password: "dev-password"
+  primary:
+    persistence:
+      size: "1Gi"
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "300m"

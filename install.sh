@@ -740,18 +740,18 @@ if [ "$install_kafka" = true ]; then
     fi
 
     # Deploy Schema Registry
-    # echo -e "\n${YELLOW}>>> Deploying Schema Registry...${NC}"
-    # kubectl apply -f kube/schema-registry.yaml
+     echo -e "\n${YELLOW}>>> Deploying Schema Registry...${NC}"
+     kubectl apply -f kube/schema-registry.yaml
 
     # Wait for Schema Registry
-    # echo -e "${YELLOW}Waiting for Schema Registry to be ready...${NC}"
-    #if ! kubectl wait --for=condition=available deployment/schema-registry -n messaging --timeout=900s; then
-    #    echo -e "${RED}Schema Registry deployment timeout. Checking logs...${NC}"
-    #    kubectl logs deployment/schema-registry -n messaging
-    #    echo -e "${YELLOW}Continuing with deployment...${NC}"
-    #else
-    #    echo -e "${GREEN}Schema Registry deployed successfully!${NC}"
-    #fi
+     echo -e "${YELLOW}Waiting for Schema Registry to be ready...${NC}"
+    if ! kubectl wait --for=condition=available deployment/schema-registry -n messaging --timeout=900s; then
+        echo -e "${RED}Schema Registry deployment timeout. Checking logs...${NC}"
+        kubectl logs deployment/schema-registry -n messaging
+        echo -e "${YELLOW}Continuing with deployment...${NC}"
+    else
+        echo -e "${GREEN}Schema Registry deployed successfully!${NC}"
+    fi
 
     # Test Schema Registry accessibility
     echo -e "${YELLOW}Testing Schema Registry accessibility...${NC}"

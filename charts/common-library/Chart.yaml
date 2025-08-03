@@ -1,0 +1,16 @@
+apiVersion: v2
+name: common-library
+description: Common library chart for ephemeral environments
+version: 1.0.0
+type: library
+
+# Library chart to provide reusable templates for all applications
+maintainers:
+  - name: DevOps Team
+    email: devops@company.com
+
+keywords:
+  - kubernetes
+  - library
+  - common
+  - templates

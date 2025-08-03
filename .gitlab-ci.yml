@@ -1,0 +1,143 @@
+stages:
+  - build
+  - push
+  - deploy
+
+variables:
+  BASE_DOMAIN: dev.local  # Change to your actual domain
+  DOCKER_REGISTRY: registry.gitlab.com  # Change to your registry
+  GITOPS_REPO: https://gitlab.com/your-org/votchain-gitops.git  # Change to your GitOps repo
+  K8S_NAMESPACE: votchain-$CI_COMMIT_REF_SLUG
+
+helm_lint:
+  stage: build
+  image: alpine/helm:3.13.2
+  script:
+    - helm dependency update charts/votchain
+    - helm lint charts/votchain
+    - helm template charts/votchain --values charts/votchain/values.yaml >/dev/null
+  only:
+    - branches
+
+build:
+  stage: build
+  image: docker:24.0.5
+  services:
+    - docker:24.0.5-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker build -t $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA .
+    - docker tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+  only:
+    - branches
+
+push:
+  stage: push
+  image: docker:24.0.5
+  services:
+    - docker:24.0.5-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
+    - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+  only:
+    - branches
+
+deploy:
+  stage: deploy
+  image: alpine/git:latest
+  before_script:
+    - apk add --no-cache yq
+    - git config --global user.email "gitlab-ci@votchain.com"
+    - git config --global user.name "GitLab CI"
+  script:
+    # Clone GitOps repository
+    - git clone $GITOPS_REPO gitops-repo
+    - cd gitops-repo
+    
+    # Create environment-specific directory
+    - mkdir -p apps/$CI_COMMIT_REF_SLUG
+    
+    # Generate ArgoCD Application manifest
+    - |
+      cat > apps/$CI_COMMIT_REF_SLUG/application.yaml << EOF
+      apiVersion: argoproj.io/v1alpha1
+      kind: Application
+      metadata:
+        name: votchain-$CI_COMMIT_REF_SLUG
+        namespace: argocd
+        finalizers:
+          - resources-finalizer.argocd.argoproj.io
+      spec:
+        project: default
+        source:
+          repoURL: $CI_PROJECT_URL
+          targetRevision: $CI_COMMIT_SHA
+          path: charts/votchain
+          helm:
+            valueFiles:
+              - ../../values-global.yaml
+            parameters:
+              - name: global.environment
+                value: $CI_COMMIT_REF_SLUG
+              - name: global.baseDomain
+                value: $BASE_DOMAIN
+              - name: global.imageTag
+                value: $CI_COMMIT_SHORT_SHA
+              - name: global.hostname
+                value: $CI_COMMIT_REF_SLUG.$BASE_DOMAIN
+        destination:
+          server: https://kubernetes.default.svc
+          namespace: $K8S_NAMESPACE
+        syncPolicy:
+          automated:
+            prune: true
+            selfHeal: true
+          syncOptions:
+            - CreateNamespace=true
+            - PrunePropagationPolicy=foreground
+            - PruneLast=true
+      EOF
+    
+    # Commit and push changes
+    - git add .
+    - git commit -m "Deploy $CI_PROJECT_NAME:$CI_COMMIT_SHORT_SHA to $CI_COMMIT_REF_SLUG" || true
+    - git push origin main
+  only:
+    - branches
+  environment:
+    name: $CI_COMMIT_REF_SLUG
+    url: https://$CI_COMMIT_REF_SLUG.$BASE_DOMAIN
+    on_stop: cleanup
+
+cleanup:
+  stage: deploy
+  image: alpine/git:latest
+  before_script:
+    - git config --global user.email "gitlab-ci@votchain.com"
+    - git config --global user.name "GitLab CI"
+  script:
+    # Clone GitOps repository
+    - git clone $GITOPS_REPO gitops-repo
+    - cd gitops-repo
+    
+    # Remove environment-specific directory
+    - rm -rf apps/$CI_COMMIT_REF_SLUG
+    
+    # Commit and push changes
+    - git add .
+    - git commit -m "Remove environment $CI_COMMIT_REF_SLUG" || true
+    - git push origin main
+  when: manual
+  environment:
+    name: $CI_COMMIT_REF_SLUG
+    action: stop
+  only:
+    - branches
+

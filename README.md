@@ -120,3 +120,12 @@ grep "local" /etc/hosts
 kubectl logs -n <namespace> <pod-name>
 kubectl describe pod <pod-name> -n <namespace>
 ```
+
+1. Namespaces and Argo CD:
+   •  You've defined namespaces under argocd, storage, messaging, security, monitoring, and vault.
+   •  There's a default argocd project in local-k3d.yaml for application management.
+2. GitLab CI Configuration:
+   •  The GitLab CI script creates directories for each branch slug and sets up Helm values making use of the branch name dynamically.
+3. Ingress and ServiceAccount Management:
+   •  Ingress configurations for services seem to follow the discussed pattern.
+   •  There is some mention of creating service accounts and RBAC under the argo-cd values file.
